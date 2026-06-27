@@ -7,7 +7,7 @@ from standings import show_division_standings, show_wild_card_standings
 
 st.set_page_config(page_title="MLB Stats Dashboard", layout="wide")
 
-st.title("⚾ MLB Statistics Dashboard")
+st.title("⚾ Diamond Analytics")
 
 season = st.sidebar.selectbox("Season", list(range(2026, 2015, -1)))
 
