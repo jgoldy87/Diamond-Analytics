@@ -2,8 +2,8 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-from mlb_api import get_league_leaders, get_standings, get_schedule
-from standings import show_division_standings, show_wild_card_standings
+from api.mlb_api import get_league_leaders, get_standings, get_schedule
+from pages.standings import show_division_standings, show_wild_card_standings
 
 st.set_page_config(page_title="MLB Stats Dashboard", layout="wide")
 
