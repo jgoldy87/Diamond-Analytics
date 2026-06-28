@@ -1,7 +1,8 @@
 import streamlit as st
 
 
-import streamlit as st
+def get_player_headshot_url(player_id):
+    return f"https://img.mlbstatic.com/mlb-photos/image/upload/w_240,q_100/v1/people/{player_id}/headshot/67/current"
 
 
 def show_player_explorer(search_players, get_player_season_stats, get_player_team, season):
@@ -37,20 +38,33 @@ def show_player_explorer(search_players, get_player_season_stats, get_player_tea
 
     stats_df, stats_team = get_player_season_stats(player_id, season, stat_group)
 
-    st.subheader(selected_name)
+    st.divider()
 
-    col1, col2, col3, col4 = st.columns(4)
+    left_col, right_col = st.columns([1, 2])
 
-    col1.metric("Team", display_team)
-    col2.metric("Position", player_row["Primary Position"])
-    col3.metric("Bats", player_row["Bats"])
-    col4.metric("Throws", player_row["Throws"])
+    with left_col:
+        st.image(
+            get_player_headshot_url(player_id),
+            caption=selected_name,
+            use_container_width=True
+        )
 
-    st.write(
-        f"**Height:** {player_row['Height']}  \n"
-        f"**Weight:** {player_row['Weight']} lbs  \n"
-        f"**Birth Date:** {player_row['Birth Date']}"
-    )
+    with right_col:
+        st.markdown(f"## {selected_name}")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric("Team", display_team)
+            st.metric("Position", player_row["Primary Position"])
+            st.metric("Bats", player_row["Bats"])
+
+        with col2:
+            st.metric("Throws", player_row["Throws"])
+            st.metric("Height", player_row["Height"])
+            st.metric("Weight", f"{player_row['Weight']} lbs")
+
+        st.markdown(f"**Birth Date:** {player_row['Birth Date']}")
 
     st.divider()
 
