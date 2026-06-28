@@ -16,7 +16,7 @@ from pages.players import show_player_explorer
 
 st.set_page_config(page_title="MLB Stats Dashboard", layout="wide")
 
-st.title("⚾ Diamond Analytics")
+st.sidebar.title("⚾ Diamond Analytics")
 
 season = st.sidebar.selectbox("Season", list(range(2026, 2015, -1)))
 
@@ -183,8 +183,75 @@ def show_team_summary(standings_df):
     st.plotly_chart(fig, use_container_width=True)
 
 def show_home_dashboard():
-    st.header("🏠 Diamond Analytics Home")
-    st.write("Interactive MLB statistics and analytics powered by Python.")
+    st.markdown(
+        """
+        # ⚾ Diamond Analytics
+
+        **Interactive MLB statistics and baseball analytics powered by Python.**
+
+        Explore live standings, Wild Card races, league leaders, daily games, team summaries, and player statistics through an interactive web dashboard.
+        """
+    )
+
+    st.divider()
+
+    st.subheader("🚀 What You Can Explore")
+
+    feature_col1, feature_col2, feature_col3 = st.columns(3)
+
+    with feature_col1:
+        st.markdown(
+            """
+            ### 📊 Standings
+            View current division standings and Wild Card races across MLB.
+            """
+        )
+
+    with feature_col2:
+        st.markdown(
+            """
+            ### 🏆 League Leaders
+            Track top hitters and pitchers in key statistical categories.
+            """
+        )
+
+    with feature_col3:
+        st.markdown(
+            """
+            ### 👤 Player Explorer
+            Search MLB players and view season stats, team info, and player details.
+            """
+        )
+
+    feature_col4, feature_col5, feature_col6 = st.columns(3)
+
+    with feature_col4:
+        st.markdown(
+            """
+            ### 📅 Daily Scoreboard
+            See today’s MLB matchups, scores, statuses, and venues.
+            """
+        )
+
+    with feature_col5:
+        st.markdown(
+            """
+            ### 🏟️ Team Explorer
+            Review team records, division context, recent games, and performance.
+            """
+        )
+
+    with feature_col6:
+        st.markdown(
+            """
+            ### 📈 Analytics Roadmap
+            Future updates will include career stats, player trends, historical data, and advanced metrics.
+            """
+        )
+
+    st.divider()
+
+    st.subheader("⚡ MLB At a Glance")
 
     standings_df = cached_standings(season)
 
@@ -231,7 +298,7 @@ def show_home_dashboard():
 
     st.divider()
 
-    st.subheader("🏆 Mini League Leader Cards")
+    st.subheader("🏆 Featured League Leaders")
 
     leader_col1, leader_col2, leader_col3 = st.columns(3)
 
@@ -268,25 +335,7 @@ def show_home_dashboard():
 
     st.divider()
 
-    st.subheader("📊 Division Leaders")
-
-    division_leaders = (
-        standings_df
-        .sort_values(["Division", "Wins", "Pct"], ascending=[True, False, False])
-        .groupby("Division")
-        .head(1)
-        [["Division", "Team", "Wins", "Losses", "Pct", "Run Differential"]]
-    )
-
-    st.dataframe(
-        division_leaders,
-        use_container_width=True,
-        hide_index=True
-    )
-
-    st.divider()
-
-    st.subheader("🔥 Top Wild Card Contenders")
+    st.subheader("🔥 Wild Card Snapshot")
 
     for league in ["American League", "National League"]:
         st.markdown(f"**{league}**")
@@ -309,6 +358,18 @@ def show_home_dashboard():
         )
 
         st.dataframe(wc_df, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+    st.markdown(
+        """
+        ### About This Project
+
+        Diamond Analytics is a personal baseball analytics project built with **Python**, **Streamlit**, **Pandas**, **Plotly**, and the **MLB Stats API**.
+
+        The goal is to create an accessible, interactive MLB dashboard while continuing to develop practical skills in data analysis, API integration, visualization, and software development.
+        """
+    )
 
 if page == "Home":
     show_home_dashboard()
