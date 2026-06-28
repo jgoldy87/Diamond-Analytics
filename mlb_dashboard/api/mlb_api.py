@@ -1,4 +1,3 @@
-from turtle import st
 
 from plotly import data
 import requests
