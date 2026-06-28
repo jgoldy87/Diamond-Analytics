@@ -31,13 +31,17 @@ def show_division_standings(df):
 
         st.dataframe(div_df, use_container_width=True, hide_index=True)
 
-        fig = px.bar(
-            div_df.sort_values("Wins", ascending=True),
+        fig = px.scatter(
+            div_df,
             x="Wins",
-            y="Team",
-            orientation="h",
-            title=f"{division} Wins"
+            y="Run Differential",
+            text="Team",
+            size="Pct",
+            hover_data=["Losses", "GB", "Streak"],
+            title=f"{division}: Wins vs Run Differential"
         )
+
+        fig.update_traces(textposition="top center")
 
         st.plotly_chart(fig, use_container_width=True)
 
@@ -89,12 +93,22 @@ def show_wild_card_standings(df):
 
         st.dataframe(display_df, use_container_width=True, hide_index=True)
 
-        fig = px.bar(
-            display_df.sort_values("Wins", ascending=True),
-            x="Wins",
-            y="Team",
-            orientation="h",
-            title=f"{league} Wild Card Race"
-        )
+        chart_df = display_df.copy()
+    
+    chart_df["WC GB Numeric"] = chart_df["Calculated WC GB"].replace("-", 0)
+    chart_df["WC GB Numeric"] = chart_df["WC GB Numeric"].astype(float)
 
-        st.plotly_chart(fig, use_container_width=True)
+    fig = px.scatter(
+        chart_df,
+        x="Wins",
+        y="WC GB Numeric",
+        text="Team",
+        size="Pct",
+        hover_data=["Losses", "Run Differential", "Streak"],
+        title=f"{league}: Wild Card Positioning"
+    )
+
+    fig.update_traces(textposition="top center")
+    fig.update_yaxes(title="Games Back", autorange="reversed")
+
+    st.plotly_chart(fig, use_container_width=True)
