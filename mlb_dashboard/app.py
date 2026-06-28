@@ -14,6 +14,7 @@ season = st.sidebar.selectbox("Season", list(range(2026, 2015, -1)))
 page = st.sidebar.radio(
     "Dashboard Section",
     [
+        "Home",
         "League Leaders",
         "Division Standings",
         "Wild Card Standings",
@@ -171,7 +172,89 @@ def show_team_summary(standings_df):
 
     st.plotly_chart(fig, use_container_width=True)
 
-if page == "League Leaders":
+def show_home_dashboard():
+    st.header("🏠 Diamond Analytics Home")
+
+    st.write("Interactive MLB statistics and analytics powered by Python.")
+
+    standings_df = cached_standings(season)
+
+    if standings_df.empty:
+        st.warning("No standings data found.")
+        return
+
+    col1, col2, col3 = st.columns(3)
+
+    best_team = standings_df.sort_values("Pct", ascending=False).iloc[0]
+    most_wins = standings_df.sort_values("Wins", ascending=False).iloc[0]
+    best_run_diff = standings_df.sort_values("Run Differential", ascending=False).iloc[0]
+
+    col1.metric(
+        "Best Win %",
+        best_team["Team"],
+        f"{best_team['Pct']:.3f}"
+    )
+
+    col2.metric(
+        "Most Wins",
+        most_wins["Team"],
+        int(most_wins["Wins"])
+    )
+
+    col3.metric(
+        "Best Run Differential",
+        best_run_diff["Team"],
+        int(best_run_diff["Run Differential"])
+    )
+
+    st.divider()
+
+    st.subheader("📊 Division Leaders")
+
+    division_leaders = (
+        standings_df
+        .sort_values(["Division", "Wins", "Pct"], ascending=[True, False, False])
+        .groupby("Division")
+        .head(1)
+        [["Division", "Team", "Wins", "Losses", "Pct", "Run Differential"]]
+    )
+
+    st.dataframe(
+        division_leaders,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.divider()
+
+    st.subheader("🔥 Top Wild Card Contenders")
+
+    for league in ["American League", "National League"]:
+        st.markdown(f"**{league}**")
+
+        league_df = standings_df[standings_df["League"] == league].copy()
+
+        division_leader_teams = (
+            league_df
+            .sort_values(["Division", "Wins", "Pct"], ascending=[True, False, False])
+            .groupby("Division")
+            .head(1)["Team"]
+            .tolist()
+        )
+
+        wc_df = (
+            league_df[~league_df["Team"].isin(division_leader_teams)]
+            .sort_values(["Wins", "Pct", "Run Differential"], ascending=False)
+            .head(3)
+            [["Team", "Wins", "Losses", "Pct", "Run Differential"]]
+        )
+
+        st.dataframe(wc_df, use_container_width=True, hide_index=True)
+
+if page == "Home":
+    show_home_dashboard()
+
+elif page == "League Leaders":
     show_league_leaders()
 
 elif page == "Daily Scoreboard":
