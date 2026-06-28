@@ -3,8 +3,16 @@ import streamlit as st
 import plotly.express as px
 from datetime import date
 
-from api.mlb_api import get_league_leaders, get_standings, get_schedule
+from api.mlb_api import (
+    get_league_leaders, 
+    get_standings, 
+    get_schedule, 
+    search_players, 
+    get_player_season_stats,
+    get_player_team
+)
 from pages.standings import show_division_standings, show_wild_card_standings
+from pages.players import show_player_explorer
 
 st.set_page_config(page_title="MLB Stats Dashboard", layout="wide")
 
@@ -20,7 +28,8 @@ page = st.sidebar.radio(
         "Division Standings",
         "Wild Card Standings",
         "Daily Scoreboard",
-        "Team Summary"
+        "Team Summary",
+        "Player Explorer"
     ]
 )
 
@@ -309,6 +318,9 @@ elif page == "League Leaders":
 
 elif page == "Daily Scoreboard":
     show_daily_scoreboard()
+
+elif page == "Player Explorer":
+    show_player_explorer(search_players, get_player_season_stats, get_player_team, season)
 
 elif page == "Division Standings":
     standings_df = cached_standings(season)

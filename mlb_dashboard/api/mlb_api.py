@@ -1,3 +1,6 @@
+from turtle import st
+
+from plotly import data
 import requests
 import pandas as pd
 from datetime import date
@@ -13,13 +16,24 @@ DIVISIONS = {
     205: "NL Central",
 }
 
-def safe_get(dictionary, keys, default=None):
-    current = dictionary
+def safe_get(data, keys, default=None):
+    current = data
+
     for key in keys:
-        if not isinstance(current, dict):
+        if isinstance(current, dict):
+            current = current.get(key)
+        elif isinstance(current, list) and isinstance(key, int):
+            if 0 <= key < len(current):
+                current = current[key]
+            else:
+                return default
+        else:
             return default
-        current = current.get(key)
-    return current if current is not None else default
+
+        if current is None:
+            return default
+
+    return current
 
 def get_json(endpoint, params=None):
     url = f"{BASE_URL}/{endpoint}"
@@ -119,3 +133,91 @@ def get_schedule(selected_date):
             })
 
     return pd.DataFrame(rows)
+
+def search_players(player_name, season=2026):
+    data = get_json("sports/1/players", {
+        "season": season
+    })
+
+    rows = []
+
+    search_text = player_name.lower()
+
+    for player in data.get("people", []):
+        full_name = player.get("fullName", "")
+
+        if search_text in full_name.lower():
+            rows.append({
+                "Player ID": player.get("id"),
+                "Name": full_name,
+                "First Name": player.get("firstName"),
+                "Last Name": player.get("lastName"),
+                "Primary Position": safe_get(player, ["primaryPosition", "abbreviation"], "N/A"),
+                "Current Team": safe_get(player, ["currentTeam", "name"], "N/A"),
+                "Birth Date": player.get("birthDate"),
+                "Height": player.get("height"),
+                "Weight": player.get("weight"),
+                "Bats": safe_get(player, ["batSide", "code"], "N/A"),
+                "Throws": safe_get(player, ["pitchHand", "code"], "N/A")
+            })
+
+    return pd.DataFrame(rows)
+
+
+def get_player_season_stats(player_id, season, group):
+    data = get_json(f"people/{player_id}", {
+        "hydrate": f"stats(type=season,group={group},season={season})"
+    })
+
+    split = safe_get(
+        data,
+        ["people", 0, "stats", 0, "splits", 0],
+        {}
+    )
+
+    if not split:
+        return pd.DataFrame(), "N/A"
+
+    team_name = safe_get(split, ["team", "name"], "N/A")
+    stat = split.get("stat", {})
+
+    if not stat:
+        return pd.DataFrame(), team_name
+
+    rows = []
+
+    for key, value in stat.items():
+        rows.append({
+            "Stat": key,
+            "Value": value
+        })
+
+    return pd.DataFrame(rows), team_name
+
+def get_player_team(player_id, season):
+    # First try current team from player profile
+    data = get_json(f"people/{player_id}", {
+        "hydrate": "currentTeam"
+    })
+
+    team_name = safe_get(data, ["people", 0, "currentTeam", "name"], "N/A")
+
+    if team_name != "N/A":
+        return team_name
+
+    # If currentTeam is missing, try hitting stats
+    for group in ["hitting", "pitching"]:
+        data = get_json(f"people/{player_id}", {
+            "hydrate": f"stats(type=season,group={group},season={season})"
+        })
+
+        team_name = safe_get(
+            data,
+            ["people", 0, "stats", 0, "splits", 0, "team", "name"],
+            "N/A"
+        )
+
+        if team_name != "N/A":
+            return team_name
+
+    return "N/A"
