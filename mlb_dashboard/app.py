@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+from datetime import date
 
 from api.mlb_api import get_league_leaders, get_standings, get_schedule
 from pages.standings import show_division_standings, show_wild_card_standings
@@ -174,7 +175,6 @@ def show_team_summary(standings_df):
 
 def show_home_dashboard():
     st.header("🏠 Diamond Analytics Home")
-
     st.write("Interactive MLB statistics and analytics powered by Python.")
 
     standings_df = cached_standings(season)
@@ -189,23 +189,73 @@ def show_home_dashboard():
     most_wins = standings_df.sort_values("Wins", ascending=False).iloc[0]
     best_run_diff = standings_df.sort_values("Run Differential", ascending=False).iloc[0]
 
-    col1.metric(
-        "Best Win %",
-        best_team["Team"],
-        f"{best_team['Pct']:.3f}"
-    )
+    col1.metric("Best Win %", best_team["Team"], f"{best_team['Pct']:.3f}")
+    col2.metric("Most Wins", most_wins["Team"], int(most_wins["Wins"]))
+    col3.metric("Best Run Differential", best_run_diff["Team"], int(best_run_diff["Run Differential"]))
 
-    col2.metric(
-        "Most Wins",
-        most_wins["Team"],
-        int(most_wins["Wins"])
-    )
+    st.divider()
 
-    col3.metric(
-        "Best Run Differential",
-        best_run_diff["Team"],
-        int(best_run_diff["Run Differential"])
-    )
+    st.subheader("📅 Today's Games")
+
+    today = date.today().strftime("%Y-%m-%d")
+    today_games = cached_schedule(today)
+
+    if today_games.empty:
+        st.info("No MLB games scheduled for today.")
+    else:
+        games_display = today_games[[
+            "Game",
+            "Away Score",
+            "Home Score",
+            "Status",
+            "Venue"
+        ]].copy()
+
+        games_display["Away Score"] = games_display["Away Score"].fillna("")
+        games_display["Home Score"] = games_display["Home Score"].fillna("")
+
+        st.dataframe(
+            games_display,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    st.divider()
+
+    st.subheader("🏆 Mini League Leader Cards")
+
+    leader_col1, leader_col2, leader_col3 = st.columns(3)
+
+    hr_df = cached_leaders(season, "homeRuns", "hitting")
+    avg_df = cached_leaders(season, "battingAverage", "hitting")
+    era_df = cached_leaders(season, "earnedRunAverage", "pitching")
+
+    with leader_col1:
+        st.markdown("### Home Runs")
+        if not hr_df.empty:
+            leader = hr_df.iloc[0]
+            st.metric(leader["Player"], leader["Value"])
+            st.caption(leader["Team"])
+        else:
+            st.info("No data found.")
+
+    with leader_col2:
+        st.markdown("### Batting Average")
+        if not avg_df.empty:
+            leader = avg_df.iloc[0]
+            st.metric(leader["Player"], leader["Value"])
+            st.caption(leader["Team"])
+        else:
+            st.info("No data found.")
+
+    with leader_col3:
+        st.markdown("### ERA")
+        if not era_df.empty:
+            leader = era_df.iloc[0]
+            st.metric(leader["Player"], leader["Value"])
+            st.caption(leader["Team"])
+        else:
+            st.info("No data found.")
 
     st.divider()
 
