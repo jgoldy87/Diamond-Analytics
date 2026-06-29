@@ -4,6 +4,50 @@ import streamlit as st
 def get_player_headshot_url(player_id):
     return f"https://img.mlbstatic.com/mlb-photos/image/upload/w_240,q_100/v1/people/{player_id}/headshot/67/current"
 
+def get_stat_value(stats_df, stat_name, default="N/A"):
+    if stats_df.empty:
+        return default
+
+    match = stats_df[stats_df["Stat"] == stat_name]
+
+    if match.empty:
+        return default
+
+    return match.iloc[0]["Value"]
+
+
+def show_featured_stat_cards(stats_df, stat_group):
+    st.subheader("⭐ Featured Stats")
+
+    if stat_group == "hitting":
+        row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(4)
+
+        row1_col1.metric("Games", get_stat_value(stats_df, "gamesPlayed"))
+        row1_col2.metric("AVG", get_stat_value(stats_df, "avg"))
+        row1_col3.metric("HR", get_stat_value(stats_df, "homeRuns"))
+        row1_col4.metric("RBI", get_stat_value(stats_df, "rbi"))
+
+        row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4)
+
+        row2_col1.metric("OBP", get_stat_value(stats_df, "obp"))
+        row2_col2.metric("SLG", get_stat_value(stats_df, "slg"))
+        row2_col3.metric("OPS", get_stat_value(stats_df, "ops"))
+        row2_col4.metric("SB", get_stat_value(stats_df, "stolenBases"))
+
+    elif stat_group == "pitching":
+        row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(4)
+
+        row1_col1.metric("Games", get_stat_value(stats_df, "gamesPlayed"))
+        row1_col2.metric("ERA", get_stat_value(stats_df, "era"))
+        row1_col3.metric("WHIP", get_stat_value(stats_df, "whip"))
+        row1_col4.metric("SO", get_stat_value(stats_df, "strikeOuts"))
+
+        row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4)
+
+        row2_col1.metric("Wins", get_stat_value(stats_df, "wins"))
+        row2_col2.metric("Losses", get_stat_value(stats_df, "losses"))
+        row2_col3.metric("Saves", get_stat_value(stats_df, "saves"))
+        row2_col4.metric("IP", get_stat_value(stats_df, "inningsPitched"))
 
 def show_player_explorer(search_players, get_player_season_stats, get_player_team, season):
     st.header("👤 Player Explorer")
@@ -72,7 +116,11 @@ def show_player_explorer(search_players, get_player_season_stats, get_player_tea
         st.info(f"No {stat_group} stats found for {selected_name} in {season}.")
         return
 
-    st.subheader(f"{season} {stat_group.title()} Stats")
+    show_featured_stat_cards(stats_df, stat_group)
+
+    st.divider()
+
+    st.subheader(f"Full {season} {stat_group.title()} Stat Table")
 
     st.dataframe(
         stats_df,
