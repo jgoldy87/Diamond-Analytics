@@ -220,3 +220,48 @@ def get_player_team(player_id, season):
             return team_name
 
     return "N/A"
+
+def get_player_game_logs(player_id, season, group):
+    data = get_json(f"people/{player_id}", {
+        "hydrate": f"stats(type=gameLog,group={group},season={season})"
+    })
+
+    splits = safe_get(
+        data,
+        ["people", 0, "stats", 0, "splits"],
+        []
+    )
+
+    if not splits:
+        return pd.DataFrame()
+
+    rows = []
+
+    for game in splits:
+        stat = game.get("stat", {})
+
+        rows.append({
+            "Date": game.get("date"),
+            "Opponent": safe_get(game, ["opponent", "name"], "N/A"),
+            "Team": safe_get(game, ["team", "name"], "N/A"),
+            "Game PK": safe_get(game, ["game", "gamePk"], None),
+
+            # Hitting
+            "AB": stat.get("atBats"),
+            "H": stat.get("hits"),
+            "R": stat.get("runs"),
+            "HR": stat.get("homeRuns"),
+            "RBI": stat.get("rbi"),
+            "BB": stat.get("baseOnBalls"),
+            "SO": stat.get("strikeOuts"),
+
+            # Pitching
+            "IP": stat.get("inningsPitched"),
+            "ER": stat.get("earnedRuns"),
+            "P_SO": stat.get("strikeOuts"),
+            "P_BB": stat.get("baseOnBalls"),
+            "P_H": stat.get("hits"),
+            "P_HR": stat.get("homeRuns"),
+        })
+
+    return pd.DataFrame(rows)

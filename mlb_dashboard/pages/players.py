@@ -1,4 +1,6 @@
+import pandas as pd
 import streamlit as st
+import plotly.express as px
 
 
 def get_player_headshot_url(player_id):
@@ -49,7 +51,7 @@ def show_featured_stat_cards(stats_df, stat_group):
         row2_col3.metric("Saves", get_stat_value(stats_df, "saves"))
         row2_col4.metric("IP", get_stat_value(stats_df, "inningsPitched"))
 
-def show_player_explorer(search_players, get_player_season_stats, get_player_team, season):
+def show_player_explorer(search_players, get_player_season_stats, get_player_team, get_player_game_logs, season):
     st.header("👤 Player Explorer")
 
     player_name = st.text_input("Search for a player", placeholder="Example: Aaron Judge")
@@ -124,6 +126,54 @@ def show_player_explorer(search_players, get_player_season_stats, get_player_tea
 
     st.dataframe(
         stats_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.divider()
+
+    st.subheader("📈 Game Log Trends")
+
+    game_logs_df = get_player_game_logs(player_id, season, stat_group)
+
+    if game_logs_df.empty:
+        st.info(f"No game logs found for {selected_name} in {season}.")
+        return
+
+    game_logs_df["Date"] = pd.to_datetime(game_logs_df["Date"], errors="coerce")
+    game_logs_df = game_logs_df.sort_values("Date")
+
+    if stat_group == "hitting":
+        chart_metric = st.selectbox(
+            "Trend Metric",
+            ["H", "HR", "RBI", "R", "BB", "SO"]
+        )
+
+        chart_title = f"{selected_name}: {chart_metric} by Game"
+
+    else:
+        chart_metric = st.selectbox(
+            "Trend Metric",
+            ["IP", "ER", "P_SO", "P_BB", "P_H", "P_HR"]
+        )
+
+        chart_title = f"{selected_name}: {chart_metric} by Game"
+
+    fig = px.line(
+        game_logs_df,
+        x="Date",
+        y=chart_metric,
+        markers=True,
+        title=chart_title,
+        hover_data=["Opponent", "Team"]
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Recent Game Log")
+
+    st.dataframe(
+        game_logs_df.tail(10).sort_values("Date", ascending=False),
         use_container_width=True,
         hide_index=True
     )
