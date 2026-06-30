@@ -51,6 +51,34 @@ def show_featured_stat_cards(stats_df, stat_group):
         row2_col3.metric("Saves", get_stat_value(stats_df, "saves"))
         row2_col4.metric("IP", get_stat_value(stats_df, "inningsPitched"))
 
+def add_rolling_metrics(game_logs_df, stat_group):
+    df = game_logs_df.copy()
+
+    if stat_group == "hitting":
+        numeric_cols = ["AB", "H", "HR", "RBI", "BB", "SO"]
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+        df["Rolling 7G AVG"] = (
+            df["H"].rolling(7, min_periods=1).sum()
+            / df["AB"].rolling(7, min_periods=1).sum()
+        )
+
+        df["Rolling 7G HR"] = df["HR"].rolling(7, min_periods=1).sum()
+        df["Rolling 7G RBI"] = df["RBI"].rolling(7, min_periods=1).sum()
+        df["Rolling 7G SO"] = df["SO"].rolling(7, min_periods=1).sum()
+
+    elif stat_group == "pitching":
+        numeric_cols = ["IP", "ER", "P_SO", "P_BB", "P_H", "P_HR"]
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+        df["Rolling 5G SO"] = df["P_SO"].rolling(5, min_periods=1).sum()
+        df["Rolling 5G ER"] = df["ER"].rolling(5, min_periods=1).sum()
+        df["Rolling 5G IP"] = df["IP"].rolling(5, min_periods=1).sum()
+
+    return df
+
 def show_player_explorer(search_players, get_player_season_stats, get_player_team, get_player_game_logs, season):
     st.header("👤 Player Explorer")
 
@@ -169,6 +197,41 @@ def show_player_explorer(search_players, get_player_season_stats, get_player_tea
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("📈 Rolling Performance Trend")
+
+    rolling_df = add_rolling_metrics(game_logs_df, stat_group)
+
+    if stat_group == "hitting":
+        rolling_metric = st.selectbox(
+            "Rolling Metric",
+            [
+                "Rolling 7G AVG",
+                "Rolling 7G HR",
+                "Rolling 7G RBI",
+                "Rolling 7G SO"
+            ]
+        )
+    else:
+        rolling_metric = st.selectbox(
+            "Rolling Metric",
+            [
+                "Rolling 5G SO",
+                "Rolling 5G ER",
+                "Rolling 5G IP"
+            ]
+        )
+
+    rolling_fig = px.line(
+        rolling_df,
+        x="Date",
+        y=rolling_metric,
+        markers=True,
+        title=f"{selected_name}: {rolling_metric}",
+        hover_data=["Opponent", "Team"]
+    )
+
+    st.plotly_chart(rolling_fig, use_container_width=True)
 
     st.subheader("Recent Game Log")
 
