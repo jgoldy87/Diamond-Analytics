@@ -9,6 +9,7 @@ from api.mlb_api import (
     get_schedule, 
     search_players, 
     get_player_season_stats,
+    get_player_career_stats,
     get_player_team,
     get_player_game_logs
 )
@@ -382,9 +383,10 @@ elif page == "Daily Scoreboard":
     show_daily_scoreboard()
 
 elif page == "Player Explorer":
-    show_player_explorer(
+   show_player_explorer(
     search_players,
     get_player_season_stats,
+    get_player_career_stats,
     get_player_team,
     get_player_game_logs,
     season

@@ -193,6 +193,33 @@ def get_player_season_stats(player_id, season, group):
 
     return pd.DataFrame(rows), team_name
 
+def get_player_career_stats(player_id, group):
+    data = get_json(
+        f"people/{player_id}",
+        {
+            "hydrate": f"stats(type=career,group={group})"
+        }
+    )
+
+    stat = safe_get(
+        data,
+        ["people", 0, "stats", 0, "splits", 0, "stat"],
+        {}
+    )
+
+    if not stat:
+        return pd.DataFrame()
+
+    rows = [
+        {
+            "Stat": key,
+            "Value": value
+        }
+        for key, value in stat.items()
+    ]
+
+    return pd.DataFrame(rows)
+
 def get_player_team(player_id, season):
     # First try current team from player profile
     data = get_json(f"people/{player_id}", {

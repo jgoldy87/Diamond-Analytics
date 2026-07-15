@@ -79,10 +79,20 @@ def add_rolling_metrics(game_logs_df, stat_group):
 
     return df
 
-def show_player_explorer(search_players, get_player_season_stats, get_player_team, get_player_game_logs, season):
+def show_player_explorer(
+    search_players,
+    get_player_season_stats,
+    get_player_career_stats,
+    get_player_team,
+    get_player_game_logs,
+    season
+):
     st.header("👤 Player Explorer")
 
-    player_name = st.text_input("Search for a player", placeholder="Example: Aaron Judge")
+    player_name = st.text_input(
+        "Search for a player",
+        placeholder="Example: Aaron Judge"
+    )
 
     if not player_name:
         st.info("Enter a player name to begin.")
@@ -99,9 +109,11 @@ def show_player_explorer(search_players, get_player_season_stats, get_player_tea
         results_df["Name"].tolist()
     )
 
-    player_row = results_df[results_df["Name"] == selected_name].iloc[0]
-    player_id = player_row["Player ID"]
+    player_row = results_df[
+        results_df["Name"] == selected_name
+    ].iloc[0]
 
+    player_id = player_row["Player ID"]
     display_team = get_player_team(player_id, season)
 
     stat_group = st.radio(
@@ -110,8 +122,13 @@ def show_player_explorer(search_players, get_player_season_stats, get_player_tea
         horizontal=True
     )
 
-    stats_df, stats_team = get_player_season_stats(player_id, season, stat_group)
+    stats_view = st.radio(
+        "Statistics View",
+        ["Season Stats", "Career Stats"],
+        horizontal=True
+    )
 
+    # Player profile card
     st.divider()
 
     left_col, right_col = st.columns([1, 2])
@@ -126,117 +143,203 @@ def show_player_explorer(search_players, get_player_season_stats, get_player_tea
     with right_col:
         st.markdown(f"## {selected_name}")
 
-        col1, col2 = st.columns(2)
+        profile_col1, profile_col2 = st.columns(2)
 
-        with col1:
+        with profile_col1:
             st.metric("Team", display_team)
-            st.metric("Position", player_row["Primary Position"])
+            st.metric(
+                "Position",
+                player_row["Primary Position"]
+            )
             st.metric("Bats", player_row["Bats"])
 
-        with col2:
+        with profile_col2:
             st.metric("Throws", player_row["Throws"])
             st.metric("Height", player_row["Height"])
-            st.metric("Weight", f"{player_row['Weight']} lbs")
+            st.metric(
+                "Weight",
+                f"{player_row['Weight']} lbs"
+            )
 
-        st.markdown(f"**Birth Date:** {player_row['Birth Date']}")
-
-    st.divider()
-
-    if stats_df.empty:
-        st.info(f"No {stat_group} stats found for {selected_name} in {season}.")
-        return
-
-    show_featured_stat_cards(stats_df, stat_group)
-
-    st.divider()
-
-    st.subheader(f"Full {season} {stat_group.title()} Stat Table")
-
-    st.dataframe(
-        stats_df,
-        use_container_width=True,
-        hide_index=True
-    )
-
-    st.divider()
-
-    st.subheader("📈 Game Log Trends")
-
-    game_logs_df = get_player_game_logs(player_id, season, stat_group)
-
-    if game_logs_df.empty:
-        st.info(f"No game logs found for {selected_name} in {season}.")
-        return
-
-    game_logs_df["Date"] = pd.to_datetime(game_logs_df["Date"], errors="coerce")
-    game_logs_df = game_logs_df.sort_values("Date")
-
-    if stat_group == "hitting":
-        chart_metric = st.selectbox(
-            "Trend Metric",
-            ["H", "HR", "RBI", "R", "BB", "SO"]
+        st.markdown(
+            f"**Birth Date:** {player_row['Birth Date']}"
         )
 
-        chart_title = f"{selected_name}: {chart_metric} by Game"
+    st.divider()
 
+    # ------------------------------------
+    # SEASON STATS VIEW
+    # ------------------------------------
+    if stats_view == "Season Stats":
+        stats_df, stats_team = get_player_season_stats(
+            player_id,
+            season,
+            stat_group
+        )
+
+        if stats_df.empty:
+            st.info(
+                f"No {stat_group} stats found for "
+                f"{selected_name} in {season}."
+            )
+            return
+
+        st.subheader(f"{season} Season Statistics")
+
+        show_featured_stat_cards(
+            stats_df,
+            stat_group
+        )
+
+        st.divider()
+
+        st.subheader(
+            f"Full {season} {stat_group.title()} Stat Table"
+        )
+
+        st.dataframe(
+            stats_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.divider()
+
+        # Game logs only belong to season view
+        st.subheader("📈 Game Log Trends")
+
+        game_logs_df = get_player_game_logs(
+            player_id,
+            season,
+            stat_group
+        )
+
+        if game_logs_df.empty:
+            st.info(
+                f"No game logs found for "
+                f"{selected_name} in {season}."
+            )
+            return
+
+        game_logs_df["Date"] = pd.to_datetime(
+            game_logs_df["Date"],
+            errors="coerce"
+        )
+
+        game_logs_df = game_logs_df.sort_values("Date")
+
+        if stat_group == "hitting":
+            chart_metric = st.selectbox(
+                "Trend Metric",
+                ["H", "HR", "RBI", "R", "BB", "SO"]
+            )
+        else:
+            chart_metric = st.selectbox(
+                "Trend Metric",
+                ["IP", "ER", "P_SO", "P_BB", "P_H", "P_HR"]
+            )
+
+        fig = px.line(
+            game_logs_df,
+            x="Date",
+            y=chart_metric,
+            markers=True,
+            title=f"{selected_name}: {chart_metric} by Game",
+            hover_data=["Opponent", "Team"]
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        st.subheader("📈 Rolling Performance Trend")
+
+        rolling_df = add_rolling_metrics(
+            game_logs_df,
+            stat_group
+        )
+
+        if stat_group == "hitting":
+            rolling_metric = st.selectbox(
+                "Rolling Metric",
+                [
+                    "Rolling 7G AVG",
+                    "Rolling 7G HR",
+                    "Rolling 7G RBI",
+                    "Rolling 7G SO"
+                ]
+            )
+        else:
+            rolling_metric = st.selectbox(
+                "Rolling Metric",
+                [
+                    "Rolling 5G SO",
+                    "Rolling 5G ER",
+                    "Rolling 5G IP"
+                ]
+            )
+
+        rolling_fig = px.line(
+            rolling_df,
+            x="Date",
+            y=rolling_metric,
+            markers=True,
+            title=f"{selected_name}: {rolling_metric}",
+            hover_data=["Opponent", "Team"]
+        )
+
+        st.plotly_chart(
+            rolling_fig,
+            use_container_width=True
+        )
+
+        st.subheader("Recent Game Log")
+
+        st.dataframe(
+            game_logs_df
+            .tail(10)
+            .sort_values("Date", ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+
+    # ------------------------------------
+    # CAREER STATS VIEW
+    # ------------------------------------
     else:
-        chart_metric = st.selectbox(
-            "Trend Metric",
-            ["IP", "ER", "P_SO", "P_BB", "P_H", "P_HR"]
+        career_stats_df = get_player_career_stats(
+            player_id,
+            stat_group
         )
 
-        chart_title = f"{selected_name}: {chart_metric} by Game"
+        if career_stats_df.empty:
+            st.info(
+                f"No career {stat_group} stats found "
+                f"for {selected_name}."
+            )
+            return
 
-    fig = px.line(
-        game_logs_df,
-        x="Date",
-        y=chart_metric,
-        markers=True,
-        title=chart_title,
-        hover_data=["Opponent", "Team"]
-    )
+        st.subheader("Career Statistics")
 
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("📈 Rolling Performance Trend")
-
-    rolling_df = add_rolling_metrics(game_logs_df, stat_group)
-
-    if stat_group == "hitting":
-        rolling_metric = st.selectbox(
-            "Rolling Metric",
-            [
-                "Rolling 7G AVG",
-                "Rolling 7G HR",
-                "Rolling 7G RBI",
-                "Rolling 7G SO"
-            ]
-        )
-    else:
-        rolling_metric = st.selectbox(
-            "Rolling Metric",
-            [
-                "Rolling 5G SO",
-                "Rolling 5G ER",
-                "Rolling 5G IP"
-            ]
+        show_featured_stat_cards(
+            career_stats_df,
+            stat_group
         )
 
-    rolling_fig = px.line(
-        rolling_df,
-        x="Date",
-        y=rolling_metric,
-        markers=True,
-        title=f"{selected_name}: {rolling_metric}",
-        hover_data=["Opponent", "Team"]
-    )
+        st.divider()
 
-    st.plotly_chart(rolling_fig, use_container_width=True)
+        st.subheader(
+            f"Full Career {stat_group.title()} Stat Table"
+        )
 
-    st.subheader("Recent Game Log")
+        st.dataframe(
+            career_stats_df,
+            use_container_width=True,
+            hide_index=True
+        )
 
-    st.dataframe(
-        game_logs_df.tail(10).sort_values("Date", ascending=False),
-        use_container_width=True,
-        hide_index=True
-    )
+        st.caption(
+            "Game logs and rolling trends are available "
+            "only in the Season Stats view."
+        )
