@@ -79,6 +79,156 @@ def add_rolling_metrics(game_logs_df, stat_group):
 
     return df
 
+def innings_to_outs(innings):
+    """Convert baseball innings notation such as 6.2 into total outs."""
+    if innings is None:
+        return 0
+
+    try:
+        innings_str = str(innings)
+        parts = innings_str.split(".")
+
+        full_innings = int(parts[0])
+        partial_outs = int(parts[1]) if len(parts) > 1 else 0
+
+        return (full_innings * 3) + partial_outs
+    except (ValueError, TypeError):
+        return 0
+
+
+def outs_to_innings(outs):
+    """Convert total outs back to baseball innings notation."""
+    full_innings = outs // 3
+    remaining_outs = outs % 3
+
+    return f"{full_innings}.{remaining_outs}"
+
+
+def filter_recent_games(game_logs_df, period):
+    df = game_logs_df.sort_values("Date").copy()
+
+    periods = {
+        "Last 7 Games": 7,
+        "Last 15 Games": 15,
+        "Last 30 Games": 30
+    }
+
+    if period == "Full Season":
+        return df
+
+    return df.tail(periods[period])
+
+
+def calculate_split_summary(df, stat_group):
+    if df.empty:
+        return {}
+
+    if stat_group == "hitting":
+        numeric_cols = ["AB", "H", "HR", "RBI", "BB", "SO"]
+
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(
+                df[col],
+                errors="coerce"
+            ).fillna(0)
+
+        ab = df["AB"].sum()
+        hits = df["H"].sum()
+
+        avg = hits / ab if ab > 0 else 0
+
+        return {
+            "Games": len(df),
+            "AVG": f"{avg:.3f}".replace("0.", "."),
+            "Hits": int(hits),
+            "HR": int(df["HR"].sum()),
+            "RBI": int(df["RBI"].sum()),
+            "BB": int(df["BB"].sum()),
+            "SO": int(df["SO"].sum())
+        }
+
+    else:
+        numeric_cols = [
+            "ER",
+            "P_SO",
+            "P_BB",
+            "P_H"
+        ]
+
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(
+                df[col],
+                errors="coerce"
+            ).fillna(0)
+
+        total_outs = df["IP"].apply(innings_to_outs).sum()
+        innings = total_outs / 3
+
+        earned_runs = df["ER"].sum()
+        walks = df["P_BB"].sum()
+        hits = df["P_H"].sum()
+
+        era = (
+            earned_runs * 9 / innings
+            if innings > 0 else 0
+        )
+
+        whip = (
+            (walks + hits) / innings
+            if innings > 0 else 0
+        )
+
+        return {
+            "Games": len(df),
+            "IP": outs_to_innings(total_outs),
+            "ERA": f"{era:.2f}",
+            "WHIP": f"{whip:.2f}",
+            "SO": int(df["P_SO"].sum()),
+            "ER": int(earned_runs),
+            "BB": int(walks)
+        }
+
+
+def create_monthly_splits(game_logs_df, stat_group):
+    df = game_logs_df.copy()
+
+    df["Date"] = pd.to_datetime(
+        df["Date"],
+        errors="coerce"
+    )
+
+    df = df.dropna(subset=["Date"])
+
+    monthly_rows = []
+
+    for month_date, month_df in df.groupby(
+        pd.Grouper(key="Date", freq="MS")
+    ):
+        if month_df.empty:
+            continue
+
+        summary = calculate_split_summary(
+            month_df.copy(),
+            stat_group
+        )
+
+        summary["Month"] = month_date.strftime("%B")
+
+        monthly_rows.append(summary)
+
+    if not monthly_rows:
+        return pd.DataFrame()
+
+    monthly_df = pd.DataFrame(monthly_rows)
+
+    # Put Month first
+    columns = ["Month"] + [
+        col for col in monthly_df.columns
+        if col != "Month"
+    ]
+
+    return monthly_df[columns]
+
 def show_player_explorer(
     search_players,
     get_player_season_stats,
@@ -228,6 +378,88 @@ def show_player_explorer(
 
         game_logs_df = game_logs_df.sort_values("Date")
 
+        st.divider()
+
+        st.subheader("🔎 Advanced Splits")
+
+        recent_tab, monthly_tab = st.tabs([
+            "Recent Performance",
+            "Monthly Splits"
+        ])
+
+        with recent_tab:
+            period = st.selectbox(
+                "Performance Window",
+                [
+                    "Last 7 Games",
+                    "Last 15 Games",
+                    "Last 30 Games",
+                    "Full Season"
+                ],
+                key="player_performance_window"
+            )
+
+            filtered_games = filter_recent_games(
+                game_logs_df,
+                period
+            )
+
+            summary = calculate_split_summary(
+                filtered_games.copy(),
+                stat_group
+            )
+
+            st.markdown(f"### {period}")
+
+            if stat_group == "hitting":
+                c1, c2, c3, c4 = st.columns(4)
+
+                c1.metric("Games", summary.get("Games", "N/A"))
+                c2.metric("AVG", summary.get("AVG", "N/A"))
+                c3.metric("Hits", summary.get("Hits", "N/A"))
+                c4.metric("HR", summary.get("HR", "N/A"))
+
+                c5, c6, c7 = st.columns(3)
+
+                c5.metric("RBI", summary.get("RBI", "N/A"))
+                c6.metric("BB", summary.get("BB", "N/A"))
+                c7.metric("SO", summary.get("SO", "N/A"))
+
+            else:
+                c1, c2, c3, c4 = st.columns(4)
+
+                c1.metric("Games", summary.get("Games", "N/A"))
+                c2.metric("IP", summary.get("IP", "N/A"))
+                c3.metric("ERA", summary.get("ERA", "N/A"))
+                c4.metric("WHIP", summary.get("WHIP", "N/A"))
+
+                c5, c6, c7 = st.columns(3)
+
+                c5.metric("SO", summary.get("SO", "N/A"))
+                c6.metric("ER", summary.get("ER", "N/A"))
+                c7.metric("BB", summary.get("BB", "N/A"))
+
+        with monthly_tab:
+            monthly_df = create_monthly_splits(
+                game_logs_df,
+                stat_group
+            )
+
+            if monthly_df.empty:
+                st.info("No monthly split data available.")
+            else:
+                st.dataframe(
+                    monthly_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+        st.divider()
+
+        # ------------------------------------
+        # GAME-BY-GAME TREND
+        # ------------------------------------
+
         if stat_group == "hitting":
             chart_metric = st.selectbox(
                 "Trend Metric",
@@ -240,7 +472,7 @@ def show_player_explorer(
             )
 
         fig = px.line(
-            game_logs_df,
+            filtered_games,
             x="Date",
             y=chart_metric,
             markers=True,
@@ -253,10 +485,14 @@ def show_player_explorer(
             use_container_width=True
         )
 
+        # ------------------------------------
+        # ROLLING PERFORMANCE TREND
+        # ------------------------------------
+
         st.subheader("📈 Rolling Performance Trend")
 
         rolling_df = add_rolling_metrics(
-            game_logs_df,
+            filtered_games,
             stat_group
         )
 
@@ -294,10 +530,14 @@ def show_player_explorer(
             use_container_width=True
         )
 
+        # ------------------------------------
+        # RECENT GAME LOG
+        # ------------------------------------
+
         st.subheader("Recent Game Log")
 
         st.dataframe(
-            game_logs_df
+            filtered_games
             .tail(10)
             .sort_values("Date", ascending=False),
             use_container_width=True,
