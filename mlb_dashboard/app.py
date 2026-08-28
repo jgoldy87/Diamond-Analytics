@@ -16,6 +16,9 @@ from api.mlb_api import (
 from pages.standings import show_division_standings, show_wild_card_standings
 from pages.players import show_player_explorer
 
+from api.historical import get_career_hitting_stats
+from pages.historical_leaders import show_all_time_leaders
+
 st.set_page_config(page_title="MLB Stats Dashboard", layout="wide")
 
 st.sidebar.title("⚾ Diamond Analytics")
@@ -31,7 +34,8 @@ page = st.sidebar.radio(
         "Wild Card Standings",
         "Daily Scoreboard",
         "Team Summary",
-        "Player Explorer"
+        "Player Explorer",
+        "All-Time Leaders"
     ]
 )
 
@@ -415,5 +419,10 @@ elif page == "Team Summary":
         st.warning("No standings data found.")
     else:
         show_team_summary(standings_df)
+
+elif page == "All-Time Leaders":
+    show_all_time_leaders(
+        get_career_hitting_stats
+    )
 
 st.caption("Data pulled from the public MLB Stats API.")
