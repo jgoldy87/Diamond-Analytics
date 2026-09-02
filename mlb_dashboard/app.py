@@ -16,7 +16,10 @@ from api.mlb_api import (
 from pages.standings import show_division_standings, show_wild_card_standings
 from pages.players import show_player_explorer
 
-from api.historical import get_career_hitting_stats
+from api.historical import (
+    get_career_hitting_stats,
+    get_career_pitching_stats
+)
 from pages.historical_leaders import show_all_time_leaders
 
 st.set_page_config(page_title="MLB Stats Dashboard", layout="wide")
@@ -420,9 +423,9 @@ elif page == "Team Summary":
     else:
         show_team_summary(standings_df)
 
-elif page == "All-Time Leaders":
-    show_all_time_leaders(
-        get_career_hitting_stats
-    )
+show_all_time_leaders(
+    get_career_hitting_stats,
+    get_career_pitching_stats
+)
 
 st.caption("Data pulled from the public MLB Stats API.")

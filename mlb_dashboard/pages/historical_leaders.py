@@ -15,16 +15,39 @@ HITTING_CATEGORIES = {
     "Batting Average": "AVG"
 }
 
+PITCHING_CATEGORIES = {
+    "Wins": "W",
+    "Strikeouts": "SO",
+    "Saves": "SV",
+    "Complete Games": "CG",
+    "Shutouts": "SHO",
+    "Games Pitched": "G",
+    "Games Started": "GS",
+    "Innings Pitched": "IP",
+    "ERA": "ERA",
+    "WHIP": "WHIP"
+}
 
-def show_all_time_leaders(get_career_hitting_stats):
+def show_all_time_leaders(get_career_hitting_stats, get_career_pitching_stats):
     st.header("🏛️ All-Time Leaders")
+
+    leader_type = st.radio(
+    "Leaderboard Type",
+    ["Hitting", "Pitching"],
+    horizontal=True
+)
 
     st.write(
         "Explore career hitting leaders using historical "
         "Major League Baseball data."
     )
 
-    career_df = get_career_hitting_stats()
+    if leader_type == "Hitting":
+        career_df = get_career_hitting_stats()
+        categories = HITTING_CATEGORIES
+    else:
+        career_df = get_career_pitching_stats()
+        categories = PITCHING_CATEGORIES
 
     if career_df.empty:
         st.warning("No historical batting data found.")
@@ -35,7 +58,7 @@ def show_all_time_leaders(get_career_hitting_stats):
     with col1:
         category_name = st.selectbox(
             "Category",
-            list(HITTING_CATEGORIES.keys())
+            list(categories.keys())
         )
 
     with col2:
@@ -45,36 +68,48 @@ def show_all_time_leaders(get_career_hitting_stats):
             index=0
         )
 
-    stat_column = HITTING_CATEGORIES[category_name]
+    stat_column = categories[category_name]
 
     leaders_df = career_df.copy()
 
-    # Career AVG needs a qualification threshold so
-    # players with only a handful of at-bats do not
-    # dominate the leaderboard.
-    if stat_column == "AVG":
+    # Hitting AVG qualification
+    if leader_type == "Hitting" and stat_column == "AVG":
         leaders_df = leaders_df[
             leaders_df["AB"] >= 3000
         ].copy()
 
+    if leader_type == "Pitching" and stat_column in ["ERA", "WHIP"]:
+        leaders_df = leaders_df[leaders_df["IP"] >= 1000].copy()
+
+    # Determine sorting direction: for ERA/WHIP lower is better
+    if stat_column in ["ERA", "WHIP"]:
+        ascending = True
+    else:
+        ascending = False
+
     leaders_df = (
         leaders_df
         .dropna(subset=[stat_column])
-        .sort_values(
-            stat_column,
-            ascending=False
-        )
+        .sort_values(stat_column, ascending=ascending)
         .head(top_n)
         .reset_index(drop=True)
     )
 
     leaders_df["Rank"] = leaders_df.index + 1
 
+    # Ensure AVG formatted and integer for counting stats
     if stat_column == "AVG":
-        leaders_df["Value"] = leaders_df[
-            stat_column
-        ].map(lambda x: f"{x:.3f}".replace("0.", "."))
-
+        leaders_df["Value"] = leaders_df[stat_column].map(
+            lambda x: f"{x:.3f}".replace("0.", ".") if pd.notna(x) else ""
+        )
+    elif stat_column in ["ERA", "WHIP"]:
+        leaders_df["Value"] = leaders_df[stat_column].map(
+            lambda x: f"{x:.2f}" if pd.notna(x) else ""
+        )
+    elif stat_column == "IP":
+        leaders_df["Value"] = leaders_df[stat_column].map(
+            lambda x: f"{x:,.1f}" if pd.notna(x) else ""
+        )
     else:
         leaders_df["Value"] = (
             leaders_df[stat_column]
@@ -82,21 +117,13 @@ def show_all_time_leaders(get_career_hitting_stats):
             .astype(int)
         )
 
-    display_df = leaders_df[[
-        "Rank",
-        "Player",
-        "Value"
-    ]]
+    display_df = leaders_df[["Rank", "Player", "Value"]]
 
     st.subheader(
-        f"Career {category_name} Leaders"
+    f"All-Time {category_name} Leaders"
     )
 
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
     st.divider()
 
@@ -104,11 +131,11 @@ def show_all_time_leaders(get_career_hitting_stats):
     # user selects Top 25 or Top 50.
     chart_df = leaders_df.head(15).copy()
 
+    # For plotting, sort ascending for rate stats where lower is better
+    plot_ascending = stat_column in ["ERA", "WHIP"]
+
     fig = px.bar(
-        chart_df.sort_values(
-            stat_column,
-            ascending=True
-        ),
+        chart_df.sort_values(stat_column, ascending=plot_ascending),
         x=stat_column,
         y="Player",
         orientation="h",
@@ -117,26 +144,15 @@ def show_all_time_leaders(get_career_hitting_stats):
     )
 
     if stat_column == "AVG":
-        fig.update_xaxes(
-            tickformat=".3f",
-            title="Batting Average"
-        )
+        fig.update_xaxes(tickformat=".3f", title="Batting Average")
     else:
-        fig.update_xaxes(
-            title=category_name
-        )
+        fig.update_xaxes(title=category_name)
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    st.plotly_chart(fig, use_container_width=True)
 
     if stat_column == "AVG":
         st.caption(
-            "Career batting-average leaderboard currently "
-            "requires at least 3,000 career at-bats."
+            "Career batting-average leaderboard currently requires at least 3,000 career at-bats."
         )
 
-    st.caption(
-        "Historical statistics sourced from the Lahman Baseball Database."
-    )
+    st.caption("Historical statistics sourced from the Lahman Baseball Database.")
