@@ -28,29 +28,54 @@ PITCHING_CATEGORIES = {
     "WHIP": "WHIP"
 }
 
-def show_all_time_leaders(get_career_hitting_stats, get_career_pitching_stats):
+def show_all_time_leaders(
+    get_career_hitting_stats,
+    get_career_pitching_stats,
+    get_single_season_hitting_stats,
+    get_single_season_pitching_stats
+):
     st.header("🏛️ All-Time Leaders")
 
-    leader_type = st.radio(
-    "Leaderboard Type",
-    ["Hitting", "Pitching"],
-    horizontal=True
-)
-
     st.write(
-        "Explore career hitting leaders using historical "
-        "Major League Baseball data."
+        "Explore career and single-season records "
+        "using historical Major League Baseball data."
     )
 
-    if leader_type == "Hitting":
-        career_df = get_career_hitting_stats()
-        categories = HITTING_CATEGORIES
-    else:
-        career_df = get_career_pitching_stats()
-        categories = PITCHING_CATEGORIES
+    record_scope = st.radio(
+        "Record Type",
+        ["Career Leaders", "Single-Season Records"],
+        horizontal=True
+    )
 
-    if career_df.empty:
-        st.warning("No historical batting data found.")
+    leader_type = st.radio(
+        "Stat Type",
+        ["Hitting", "Pitching"],
+        horizontal=True
+    )
+
+    # Load the appropriate dataset
+    if record_scope == "Career Leaders":
+
+        if leader_type == "Hitting":
+            stats_df = get_career_hitting_stats()
+            categories = HITTING_CATEGORIES
+
+        else:
+            stats_df = get_career_pitching_stats()
+            categories = PITCHING_CATEGORIES
+
+    else:
+
+        if leader_type == "Hitting":
+            stats_df = get_single_season_hitting_stats()
+            categories = HITTING_CATEGORIES
+
+        else:
+            stats_df = get_single_season_pitching_stats()
+            categories = PITCHING_CATEGORIES
+
+    if stats_df.empty:
+        st.warning("No historical data found.")
         return
 
     col1, col2 = st.columns(2)
@@ -70,16 +95,40 @@ def show_all_time_leaders(get_career_hitting_stats, get_career_pitching_stats):
 
     stat_column = categories[category_name]
 
-    leaders_df = career_df.copy()
+    leaders_df = stats_df.copy()
 
     # Hitting AVG qualification
-    if leader_type == "Hitting" and stat_column == "AVG":
-        leaders_df = leaders_df[
-            leaders_df["AB"] >= 3000
-        ].copy()
+    ascending = False
 
-    if leader_type == "Pitching" and stat_column in ["ERA", "WHIP"]:
-        leaders_df = leaders_df[leaders_df["IP"] >= 1000].copy()
+    if record_scope == "Career Leaders":
+
+        if leader_type == "Hitting" and stat_column == "AVG":
+            leaders_df = leaders_df[
+                leaders_df["AB"] >= 3000
+            ].copy()
+
+        if leader_type == "Pitching" and stat_column in ["ERA", "WHIP"]:
+            leaders_df = leaders_df[
+                leaders_df["IP"] >= 1000
+            ].copy()
+
+            ascending = True
+
+    else:
+
+        # Single-season AVG qualification
+        if leader_type == "Hitting" and stat_column == "AVG":
+            leaders_df = leaders_df[
+                leaders_df["AB"] >= 400
+            ].copy()
+
+        # Single-season ERA / WHIP qualification
+        if leader_type == "Pitching" and stat_column in ["ERA", "WHIP"]:
+            leaders_df = leaders_df[
+                leaders_df["IP"] >= 150
+            ].copy()
+
+            ascending = True
 
     # Determine sorting direction: for ERA/WHIP lower is better
     if stat_column in ["ERA", "WHIP"]:
@@ -117,11 +166,35 @@ def show_all_time_leaders(get_career_hitting_stats, get_career_pitching_stats):
             .astype(int)
         )
 
-    display_df = leaders_df[["Rank", "Player", "Value"]]
+    if record_scope == "Single-Season Records":
 
-    st.subheader(
-    f"All-Time {category_name} Leaders"
-    )
+        display_df = leaders_df[[
+            "Rank",
+            "Player",
+            "yearID",
+            "Value"
+        ]].copy()
+
+        display_df = display_df.rename(
+            columns={"yearID": "Season"}
+        )
+
+    else:
+
+        display_df = leaders_df[[
+            "Rank",
+            "Player",
+            "Value"
+        ]]
+    
+    if record_scope == "Career Leaders":
+        st.subheader(
+            f"Career {category_name} Leaders"
+        )
+    else:
+        st.subheader(
+            f"Single-Season {category_name} Records"
+        )
 
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
@@ -131,15 +204,33 @@ def show_all_time_leaders(get_career_hitting_stats, get_career_pitching_stats):
     # user selects Top 25 or Top 50.
     chart_df = leaders_df.head(15).copy()
 
-    # For plotting, sort ascending for rate stats where lower is better
-    plot_ascending = stat_column in ["ERA", "WHIP"]
+    chart_df = leaders_df.head(15).copy()
+
+    if record_scope == "Single-Season Records":
+        chart_df["Label"] = (
+            chart_df["Player"]
+            + " ("
+            + chart_df["yearID"].astype(str)
+            + ")"
+        )
+
+        y_column = "Label"
+
+    else:
+        y_column = "Player"
+
+        # For plotting, sort ascending for rate stats where lower is better
+        plot_ascending = stat_column in ["ERA", "WHIP"]
 
     fig = px.bar(
-        chart_df.sort_values(stat_column, ascending=plot_ascending),
+        chart_df.sort_values(
+            stat_column,
+            ascending=not ascending
+        ),
         x=stat_column,
-        y="Player",
+        y=y_column,
         orientation="h",
-        title=f"Top {len(chart_df)} Career {category_name} Leaders",
+        title=f"Top {len(chart_df)} {category_name}",
         hover_data=["Rank"]
     )
 
