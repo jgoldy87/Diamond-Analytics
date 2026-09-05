@@ -28,6 +28,8 @@ PITCHING_CATEGORIES = {
     "WHIP": "WHIP"
 }
 
+print("LOADED historical_leaders FROM:", __file__)
+
 def show_all_time_leaders(
     get_career_hitting_stats,
     get_career_pitching_stats,
@@ -60,6 +62,8 @@ def show_all_time_leaders(
         ["All Eras", "1920–Present"],
         horizontal=True
     )
+
+    st.info(f"Era filter loaded: {era_filter}")
 
     if era_filter == "1920–Present":
         st.caption(
