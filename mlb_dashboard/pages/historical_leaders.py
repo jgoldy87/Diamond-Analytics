@@ -53,15 +53,32 @@ def show_all_time_leaders(
         horizontal=True
     )
 
+    era_filter = st.radio(
+        "Era",
+        ["All Eras", "1920–Present"],
+        horizontal=True
+    )
+
+    if era_filter == "1920–Present":
+        st.caption(
+            "Career totals are recalculated using only statistics "
+            "recorded from the 1920 season onward."
+        )
+
+    start_year = None
+
+    if era_filter == "1920–Present":
+        start_year = 1920
+
     # Load the appropriate dataset
     if record_scope == "Career Leaders":
 
         if leader_type == "Hitting":
-            stats_df = get_career_hitting_stats()
+            stats_df = get_career_hitting_stats(start_year=start_year)
             categories = HITTING_CATEGORIES
 
         else:
-            stats_df = get_career_pitching_stats()
+            stats_df = get_career_pitching_stats(start_year=start_year)
             categories = PITCHING_CATEGORIES
 
     else:
@@ -74,6 +91,11 @@ def show_all_time_leaders(
             stats_df = get_single_season_pitching_stats()
             categories = PITCHING_CATEGORIES
 
+        if start_year is not None:
+            stats_df = stats_df[
+                stats_df["yearID"] >= start_year
+            ].copy()
+    
     if stats_df.empty:
         st.warning("No historical data found.")
         return

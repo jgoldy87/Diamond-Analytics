@@ -20,9 +20,14 @@ def load_lahman_people():
 def load_lahman_pitching():
     return pd.read_csv(PITCHING_FILE)
 
-def get_career_pitching_stats():
+def get_career_pitching_stats(start_year=None):
     pitching = load_lahman_pitching()
     people = load_lahman_people()
+
+    if start_year is not None:
+        pitching = pitching[
+            pitching["yearID"] >= start_year
+        ].copy()
 
     career = (
         pitching
@@ -42,6 +47,23 @@ def get_career_pitching_stats():
             "CG": "sum",
             "SHO": "sum"
         })
+    )
+
+    career_years = (
+        pitching
+        .groupby("playerID")["yearID"]
+        .agg(["min", "max"])
+        .reset_index()
+        .rename(columns={
+            "min": "Career_Start",
+            "max": "Career_End"
+        })
+    )
+
+    career = career.merge(
+        career_years,
+        on="playerID",
+        how="left"
     )
 
     # Convert outs into innings pitched
@@ -88,9 +110,14 @@ def get_career_pitching_stats():
     return career
 
 
-def get_career_hitting_stats():
+def get_career_hitting_stats(start_year=None):
     batting = load_lahman_batting()
     people = load_lahman_people()
+
+    if start_year is not None:
+        batting = batting[
+            batting["yearID"] >= start_year
+        ].copy()
 
     career = (
         batting
@@ -107,6 +134,23 @@ def get_career_hitting_stats():
             "SB": "sum",
             "BB": "sum"
         })
+    )
+
+    career_years = (
+        batting
+        .groupby("playerID")["yearID"]
+        .agg(["min", "max"])
+        .reset_index()
+        .rename(columns={
+            "min": "Career_Start",
+            "max": "Career_End"
+        })
+    )
+
+    career = career.merge(
+        career_years,
+        on="playerID",
+        how="left"
     )
 
     # Career batting average must be calculated
