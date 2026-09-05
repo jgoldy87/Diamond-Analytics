@@ -28,10 +28,6 @@ PITCHING_CATEGORIES = {
     "WHIP": "WHIP"
 }
 
-st.warning("NEW HISTORICAL LEADERS CODE IS RUNNING")
-
-print("LOADED historical_leaders FROM:", __file__)
-
 def show_all_time_leaders(
     get_career_hitting_stats,
     get_career_pitching_stats,
@@ -39,8 +35,6 @@ def show_all_time_leaders(
     get_single_season_pitching_stats
 ):
     st.header("🏛️ All-Time Leaders")
-
-    st.info("Era-filter version loaded")
 
     st.write(
         "Explore career and single-season records "
