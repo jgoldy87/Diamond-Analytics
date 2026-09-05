@@ -36,6 +36,8 @@ def show_all_time_leaders(
 ):
     st.header("🏛️ All-Time Leaders")
 
+    st.info("Era-filter version loaded")
+
     st.write(
         "Explore career and single-season records "
         "using historical Major League Baseball data."
@@ -226,8 +228,6 @@ def show_all_time_leaders(
     # user selects Top 25 or Top 50.
     chart_df = leaders_df.head(15).copy()
 
-    chart_df = leaders_df.head(15).copy()
-
     if record_scope == "Single-Season Records":
         chart_df["Label"] = (
             chart_df["Player"]
@@ -240,9 +240,6 @@ def show_all_time_leaders(
 
     else:
         y_column = "Player"
-
-        # For plotting, sort ascending for rate stats where lower is better
-        plot_ascending = stat_column in ["ERA", "WHIP"]
 
     fig = px.bar(
         chart_df.sort_values(
