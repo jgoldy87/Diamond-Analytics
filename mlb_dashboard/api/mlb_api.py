@@ -134,34 +134,79 @@ def get_schedule(selected_date):
     return pd.DataFrame(rows)
 
 def search_players(player_name, season=2026):
-    data = get_json("sports/1/players", {
-        "season": season
+    data = get_json("people/search", {
+        "names": player_name,
+        "sportIds": 1
     })
 
     rows = []
 
-    search_text = player_name.lower()
-
     for player in data.get("people", []):
-        full_name = player.get("fullName", "")
-
-        if search_text in full_name.lower():
-            rows.append({
-                "Player ID": player.get("id"),
-                "Name": full_name,
-                "First Name": player.get("firstName"),
-                "Last Name": player.get("lastName"),
-                "Primary Position": safe_get(player, ["primaryPosition", "abbreviation"], "N/A"),
-                "Current Team": safe_get(player, ["currentTeam", "name"], "N/A"),
-                "Birth Date": player.get("birthDate"),
-                "Height": player.get("height"),
-                "Weight": player.get("weight"),
-                "Bats": safe_get(player, ["batSide", "code"], "N/A"),
-                "Throws": safe_get(player, ["pitchHand", "code"], "N/A")
-            })
+        rows.append({
+            "Player ID": player.get("id"),
+            "Name": player.get("fullName"),
+            "First Name": player.get("firstName"),
+            "Last Name": player.get("lastName"),
+            "Primary Position": safe_get(
+                player,
+                ["primaryPosition", "abbreviation"],
+                "N/A"
+            ),
+            "Current Team": safe_get(
+                player,
+                ["currentTeam", "name"],
+                "N/A"
+            ),
+            "Birth Date": player.get("birthDate"),
+            "Height": player.get("height"),
+            "Weight": player.get("weight"),
+            "Bats": safe_get(
+                player,
+                ["batSide", "code"],
+                "N/A"
+            ),
+            "Throws": safe_get(
+                player,
+                ["pitchHand", "code"],
+                "N/A"
+            )
+        })
 
     return pd.DataFrame(rows)
 
+
+def get_player_available_seasons(player_id):
+    """
+    Return the MLB seasons in which a player has hitting or pitching stats.
+    """
+
+    seasons = set()
+
+    for group in ["hitting", "pitching"]:
+        data = get_json(
+            f"people/{player_id}/stats",
+            {
+                "stats": "yearByYear",
+                "group": group
+            }
+        )
+
+        for stat_group in data.get("stats", []):
+            for split in stat_group.get("splits", []):
+                season_data = split.get("season")
+
+                if isinstance(season_data, dict):
+                    season_value = season_data.get("id")
+                else:
+                    season_value = season_data
+
+                if season_value:
+                    try:
+                        seasons.add(int(season_value))
+                    except (TypeError, ValueError):
+                        pass
+
+    return sorted(seasons, reverse=True)
 
 def get_player_season_stats(player_id, season, group):
     data = get_json(f"people/{player_id}", {

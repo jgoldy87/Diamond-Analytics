@@ -4,7 +4,8 @@ import plotly.express as px
 from datetime import date
 
 from api.mlb_api import (
-    get_league_leaders, 
+    get_league_leaders,
+    get_player_available_seasons, 
     get_standings, 
     get_schedule, 
     search_players, 
@@ -392,14 +393,15 @@ elif page == "Daily Scoreboard":
     show_daily_scoreboard()
 
 elif page == "Player Explorer":
-   show_player_explorer(
-    search_players,
-    get_player_season_stats,
-    get_player_career_stats,
-    get_player_team,
-    get_player_game_logs,
-    season
-)
+    show_player_explorer(
+        search_players,
+        get_player_season_stats,
+        get_player_career_stats,
+        get_player_team,
+        get_player_game_logs,
+        get_player_available_seasons,
+        season
+    )
 
 elif page == "Division Standings":
     standings_df = cached_standings(season)

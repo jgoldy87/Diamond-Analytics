@@ -229,12 +229,42 @@ def create_monthly_splits(game_logs_df, stat_group):
 
     return monthly_df[columns]
 
+def format_season_ranges(seasons):
+    if not seasons:
+        return "N/A"
+
+    seasons = sorted(set(seasons))
+
+    ranges = []
+    start = seasons[0]
+    previous = seasons[0]
+
+    for year in seasons[1:]:
+        if year == previous + 1:
+            previous = year
+        else:
+            if start == previous:
+                ranges.append(str(start))
+            else:
+                ranges.append(f"{start}–{previous}")
+
+            start = year
+            previous = year
+
+    if start == previous:
+        ranges.append(str(start))
+    else:
+        ranges.append(f"{start}–{previous}")
+
+    return ", ".join(ranges)
+
 def show_player_explorer(
     search_players,
     get_player_season_stats,
     get_player_career_stats,
     get_player_team,
     get_player_game_logs,
+    get_player_available_seasons,
     season
 ):
     st.header("👤 Player Explorer")
@@ -264,7 +294,35 @@ def show_player_explorer(
     ].iloc[0]
 
     player_id = player_row["Player ID"]
-    display_team = get_player_team(player_id, season)
+
+    available_seasons = get_player_available_seasons(player_id)
+
+    if available_seasons:
+        st.caption(
+            f"MLB Seasons: {format_season_ranges(available_seasons)}"
+        )
+
+    season_options = [season]
+
+    for player_season in available_seasons:
+        if player_season != season:
+            season_options.append(player_season)
+
+    selected_season = st.selectbox(
+        "Select Season",
+        season_options,
+        index=0
+    )
+
+    if (
+        selected_season == season
+        and season not in available_seasons
+    ):
+        st.info(
+            f"No statistics are available for {selected_season}. "
+            f"Select one of the player's past seasons above "
+            f"to review historical statistics."
+        )
 
     stat_group = st.radio(
         "Stat Type",
@@ -277,6 +335,8 @@ def show_player_explorer(
         ["Season Stats", "Career Stats"],
         horizontal=True
     )
+
+    display_team = get_player_team(player_id, selected_season)
 
     # Player profile card
     st.divider()
@@ -323,18 +383,18 @@ def show_player_explorer(
     if stats_view == "Season Stats":
         stats_df, stats_team = get_player_season_stats(
             player_id,
-            season,
+            selected_season,
             stat_group
         )
 
         if stats_df.empty:
             st.info(
                 f"No {stat_group} stats found for "
-                f"{selected_name} in {season}."
+                f"{selected_name} in {selected_season}."
             )
             return
 
-        st.subheader(f"{season} Season Statistics")
+        st.subheader(f"{selected_season} Season Statistics")
 
         show_featured_stat_cards(
             stats_df,
@@ -344,7 +404,7 @@ def show_player_explorer(
         st.divider()
 
         st.subheader(
-            f"Full {season} {stat_group.title()} Stat Table"
+            f"Full {selected_season} {stat_group.title()} Stat Table"
         )
 
         st.dataframe(
@@ -360,14 +420,14 @@ def show_player_explorer(
 
         game_logs_df = get_player_game_logs(
             player_id,
-            season,
+            selected_season,
             stat_group
         )
 
         if game_logs_df.empty:
             st.info(
                 f"No game logs found for "
-                f"{selected_name} in {season}."
+                f"{selected_name} in {selected_season}."
             )
             return
 
